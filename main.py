@@ -1,179 +1,14 @@
+# main.py
 import random
 from time import sleep
 
+from weapons import default_weapons
+from items import default_items, Item
+from characters import Player, Enemy
+from battles import battle, boss_battle
 
-class Character:
-    def __init__(self, name, health, shield, weapon = None):
-        self.name = name
-        self.health = health
-        self.shield = shield
-        self.weapon = weapon
-        if weapon is None:
-            self.weapon = Weapon("Brak broni", 0, 0)
-
-    def character_stats(self):
-        print("====================")
-        print(f"Name: {self.name}")
-        print(f"Health: {self.health}")
-        print(f"Shield: {self.shield}")
-        print(f"Weapon: {self.weapon.name}")
-        print("====================")
-
-    def is_alive(self):
-        return self.health > 0
-
-class Weapon:
-    def __init__(self, name, attack_power, critical):
-        self.name = name
-        self.attack_power = attack_power
-        self.critical = critical
-
-    def weapon_stats(self):
-        print("----------⚔️----------")
-        print(f"Name: {self.name}")
-        print(f"Attack Power: {self.attack_power}")
-        print(f"Critical: {self.critical}")
-        print("----------⚔️----------")
-
-
-class Item:
-    def __init__(self, name, effect_type, value, quantity):
-        self.name = name
-        self.effect_type = effect_type
-        self.value = value
-        self.quantity = quantity
-
-heal_potion = Item("Mikstura Lecznicza", "heal", 20, 1)
-shield_potion = Item("Mikstura Tarczy", "shield", 20, 1)
-damage_potion = Item("Mikstura Wściekłości", "damage", 15, 1)
-
-items = [heal_potion, shield_potion, damage_potion]
-
-class Player(Character):
-    def heal(self):
-        r_heal = random.randint(5, 20)
-        self.health += r_heal
-        return f"{self.name} wyleczył się o {r_heal} HP. Ma teraz {self.health} HP."
-
-    def defence(self):
-        r_shld = random.randint(5, 15)
-        self.shield += r_shld
-        return f"{self.name} wzmocnił tarczę o {r_shld}. Ma teraz {self.shield} punktów tarczy."
-
-    def attack(self, enemy):
-        # szanse na krytyka
-        critical = random.random() < self.weapon.critical
-        damage = self.weapon.attack_power * (2 if critical else 1)
-
-        if critical:
-            enemy.shield = 0
-            enemy.health -= damage
-            if enemy.health < 0:
-                enemy.health = 0
-            return f"💥 {self.name} zadał obrażenia KRYTYCZNE! Zniszczył całą tarczę i zadał {damage} obrażeń. | HP wroga: {enemy.health}"
-
-        # Normalny atak
-        if enemy.shield > 0:
-            if enemy.shield >= damage:
-                enemy.shield -= damage
-                return f"{self.name} uderzył w tarczę przeciwnika za {damage}. Tarcza przeciwnika: {enemy.shield}"
-            else:
-                # przebicie tarczy
-                overflow = damage - enemy.shield
-                enemy.shield = 0
-                enemy.health -= overflow
-                if enemy.health < 0:
-                    enemy.health = 0
-                return f"{self.name} przebił tarczę i zadał {overflow} obrażeń w HP! | HP wroga: {enemy.health}"
-        else:
-            enemy.health -= damage
-            if enemy.health < 0:
-                enemy.health = 0
-            return f"{self.name} zadał {damage} obrażeń. | HP wroga: {enemy.health}"
-
-    def check_stats(self):
-        self.character_stats()
-
-    def check_enemy(self, enemy):
-        enemy.character_stats()
-    
-    def check_items(self):
-        choose_item = None
-        while choose_item == None:
-            try:
-                for idx, item in enumerate(items):
-                    print(f"{idx + 1}. {item.name} - {item.quantity}")
-                print("0. Powrót")
-                choose_item = int(input("Wybierz przedmiot: "))
-                if choose_item not in range(0, len(items) + 1):
-                    print("\033[91mNieprawidłowy wybór.\033[0m")
-                    choose_item = None
-                    continue
-                if choose_item == 0:
-                    break
-                if items[choose_item - 1].quantity == 0:
-                    print("\033[91mNie ma więcej tego przedmiotu.\033[0m")
-                    choose_item = None
-                else:
-                    if items[choose_item - 1].effect_type == "heal":
-                        self.health += items[choose_item - 1].value
-                        items[choose_item - 1].quantity -= 1
-                        print(f"\033[92m{self.name} wyleczył się o {items[choose_item - 1].value} HP. Ma teraz {self.health} HP.\033[0m")
-                    elif items[choose_item - 1].effect_type == "shield":
-                        self.shield += items[choose_item - 1].value
-                        items[choose_item - 1].quantity -= 1
-                        print(f"\033[94m{self.name} wzmocnił tarczę o {items[choose_item - 1].value}. Ma teraz {self.shield} punktów tarczy.\033[0m")
-                    elif items[choose_item - 1].effect_type == "damage":
-                        self.weapon.attack_power += items[choose_item - 1].value
-                        items[choose_item - 1].quantity -= 1
-                        print(f"\033[91m{self.name} zwiększył atak o {items[choose_item - 1].value}. Ma teraz {self.weapon.attack_power} obrażeń.\033[0m")
-            except ValueError:
-                print("\033[91mNieprawidłowy wybór.\033[0m")
-
-        
-
-
-class Enemy(Character):
-    def attack(self, player):
-        # szanse na unik gracza
-        dodge = random.random() < self.weapon.critical
-        if dodge:
-            return f"{player.name} uniknął ataku {self.name}!"
-
-        damage = self.weapon.attack_power
-        if player.shield > 0:
-            if player.shield >= damage:
-                player.shield -= damage
-                return f"{self.name} uderzył w tarczę {player.name} za {damage}. Tarcza gracza: {player.shield}"
-            else:
-                overflow = damage - player.shield
-                player.shield = 0
-                player.health -= overflow
-                if player.health < 0:
-                    player.health = 0
-                return f"{self.name} przebił tarczę i zadał {overflow} obrażeń! | HP gracza: {player.health}"
-        else:
-            player.health -= damage
-            if player.health < 0:
-                player.health = 0
-            return f"{self.name} zadał {damage} obrażeń {player.name}. | HP gracza: {player.health}"
-
-    def defence(self):
-        r_shld = random.randint(5, 15)
-        self.shield += r_shld
-        return f"{self.name} wzmocnił tarczę o {r_shld}. Ma teraz {self.shield} punktów tarczy."
-
-
-# =========================
-#     LOGIKA GRY
-# =========================
-
-weapons = [
-    Weapon("Topór", 25, 0.2),
-    Weapon("Miecz", 20, 0.35),
-    Weapon("Sztylet", 15, 0.5),
-    Weapon("Kieł", 12, 0.6),
-]
+# zdefiniuj listy przeciwników i bossów
+weapons = default_weapons.copy()
 
 enemies = [
     Enemy("Goblin", 70, 30, weapons[0]),
@@ -183,110 +18,91 @@ enemies = [
 ]
 
 bosses = [
-    Enemy("Smok", 400, 50, Weapon("Ogień", 30, 0.2)),
-    Enemy("Bazyliszek", 100, 600, Weapon("Ogon", 20, 0.8)),
+    Enemy("Smok", 400, 50, weapons[0]),
+    Enemy("Bazyliszek", 250, 60, weapons[1]),
 ]
 
-if __name__ == "__main__":
-    enemy = random.choice(enemies)
-    tury = 0
-    player = Player("Gracz", 100, 15)
-    player.character_stats()
-    enemy.character_stats()
+# przypisz max_health dla bossów, potrzebne do faz
+for b in bosses:
+    b.max_health = b.health
 
-    weapon_choice = None
-    while weapon_choice == None:
+
+def choose_weapon() -> object:
+    choice = None
+    while choice is None:
         print("---- Wybór broni ----")
-        for idx, weapon in enumerate(weapons):
-            print(f"{idx + 1}. {weapon.name}")
-        weapon_choose = int(input("Wybierz broń: "))
+        for idx, w in enumerate(weapons):
+            print(f"{idx + 1}. {w.name} (ATK: {w.attack_power}, CRIT: {w.critical})")
         try:
-            weapon_choice = weapons[weapon_choose - 1]
-            player.weapon = weapon_choice
-            print("---------------------")
-            print(f"\033[92mWybrano broń: {player.weapon.name}\033[0m")
-            print("---------------------")
-            
-        except IndexError:
-            print("\033[93m Nieprawidłowy wybór!\033[0m")
+            selected = int(input("Wybierz broń (liczba): "))
+            if 1 <= selected <= len(weapons):
+                return weapons[selected - 1]
+            else:
+                print("\033[93mNieprawidłowy wybór!\033[0m")
+        except ValueError:
+            print("\033[93mNieprawidłowy wybór!\033[0m")
 
 
-    print("---- POJEDYNEK ---")
+def main():
+    print("Witaj w konsolowej arenie!")
+    sleep(0.8)
 
+    # Stwórz gracza z domyślnym ekwipunkiem (kopiowanie, żeby avoid shared state)
+    inv = [Item(it.name, it.effect_type, it.value, it.quantity) for it in default_items]
+    player = Player("Gracz", 100, 15, inventory=inv)
 
-    
-    while player.is_alive() and enemy.is_alive():
-        print(f"\n--- TURA {tury} ---")
-        print("1. Atakuj\n2. Leczenie\n3. Obrona\n4. Ekwipunek\n5. Sprawdź statystyki")
-        choice = input("Wybór: ")
+    # wybór broni
+    player.weapon = choose_weapon()
+    print(f"\033[92mWybrano broń: {player.weapon.name}\033[0m")
+    sleep(0.6)
 
-        print("\nTrwa ruch...")
-        sleep(1.2)
+    # losowy przeciwnik
+    enemy = random.choice(enemies)
 
-        if choice == "1":
-            print("-----------------")
-            print(player.attack(enemy))
-            print("-----------------")
-        elif choice == "2":
-            print("-----------------")
-            print(player.heal())
-            print("-----------------")
-        elif choice == "3":
-            print("-----------------")
-            print(player.defence())
-            print("-----------------")
-        elif choice == "4":
-            print("-----------------")
-            player.check_items()
-            print("-----------------")
-            continue
-        elif choice == "5":
-            print("-----------------")
-            player.check_stats()
-            player.check_enemy(enemy)
-            print("-----------------")
-            continue
-        else:
-            print("\nNieprawidłowy wybór!")
-            continue
+    # run battle
+    won = battle(player, enemy, allow_items_in_battle=True)
 
-        if not enemy.is_alive() or not player.is_alive():
+    if not won:
+        print("Koniec gry - spróbuj ponownie.")
+        return
+
+    # po zwycięstwie: nagroda (gold + drop)
+    gained_gold = random.randint(10, 40)
+    player.gold += gained_gold
+    print(f"Zdobyłeś {gained_gold} złota! Masz teraz {player.gold} zł.")
+
+    # losowy drop: mała szansa na nową broń
+    if random.random() < 0.3:
+        new_weapon = random.choice(weapons)
+        print(f"\033[92mZnalazłeś broń: {new_weapon.name}! Chcesz ją wyposażyć? (t/n)\033[0m")
+        ch = input().lower()
+        if ch == "t":
+            player.weapon = new_weapon
+            print(f"Wyekwipowano: {player.weapon.name}")
+
+    # zapytaj o walke z bossem
+    while True:
+        choose = input("\nCzy chcesz zagrać w walkę z bossem? (t/n): ").lower()
+        if choose == "t":
+            boss = random.choice(bosses)
+            # przypisz max_health jeśli nie ma
+            if not hasattr(boss, "max_health"):
+                boss.max_health = boss.health
+            boss_result = boss_battle(player, boss)
+            if not boss_result:
+                print("Zginąłeś w walce z bossem. Koniec gry.")
+            else:
+                print("Gratulacje! Otrzymujesz wyjątkową nagrodę.")
             break
+        elif choose == "n":
+            print("Uciekanie do lasu... (koniec gry)")
+            sleep(1)
+            break
+        else:
+            print("Wpisz 't' lub 'n'.")
 
-        # Ruch przeciwnika
-        print("\nRuch przeciwnika...")
-        sleep(1.2)
-        print('------------------------------')
-        move = random.choice(["attack", "attack", "defence"])  # 2/3 szans na atak
-        if move == "attack":
-            print(f"{enemy.name} atakuje!")
-            print(enemy.attack(player))
-        elif move == "defence":
-            print(f"{enemy.name} się broni!")
-            print(enemy.defence())
-        print('------------------------------')
+    print("Dziękuję za grę!")
 
-        tury += 1
 
-    # Wynik końcowy
-    print("\n==============================")
-    if not player.is_alive():
-        print("❌ Gracz przegrał!")
-    else:
-
-        print("✅ Wygrałeś walkę!")
-        boss_fight = False
-        while boss_fight == False:
-            choose = input("\nCzy chcesz zagrać w walkę z bossem? (t/n): ")
-            if choose == "t":
-                boss_fight = True
-                enemy = random.choice(bosses)
-                tury = 0
-                player.character_stats()
-                enemy.character_stats()
-            elif choose == "n":
-                print("Uciekanie do lasu...")
-                sleep(3)
-                print("\nDziękuję za grę!")
-                break
-    print("==============================")
+if __name__ == "__main__":
+    main()
